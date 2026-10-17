@@ -34,6 +34,24 @@ AGG_MINUTES <- 1
 # vom Logger (Temp_b = unten = "1m", Temp_t = oben = "3m") und sind
 # hier nur Sensor-Kennungen, keine echte Messhoehe.
 
+#### Feldmessung ####
+
+# Feld-Daten liegen neben den Testdaten: data/raw/AWS20_Feld/ usw.
+FIELD_SUFFIX    <- "_Feld"
+FIELD_STATION_Z <- c(68, 63, 74, 63)  # m ue. NN, aus data/metadata/AWS_Metadaten.xlsx
+FIELD_YEAR      <- 2026               # fuer Datumsangaben ohne Jahr ("3.09")
+
+# Zeitzone der Psychrometer-Uhrzeiten in psychrometer_messungen.csv.
+# Protokoll in UTC, beim Eintragen +1 h gerechnet -> UTC+1 = "Etc/GMT-1",
+# gleiche Zeit wie die Logger.
+PSYCHRO_TZ <- "Etc/GMT-1"
+
+# Das Psychrometer wurde auf Hoehe des unteren Sensors gemessen
+PSYCHRO_SENSOR <- "1m"
+
+PSYCHRO_AVG_HALF_WINDOW_MIN <- 2    # AWS-Mittel ueber +/- 2 min um die Ablesung
+PSYCHRO_READ_UNC_K          <- 0.1  # Ablesegenauigkeit der Thermometer (K)
+
 #### Variablen ####
 #
 # Pro Variablengruppe:

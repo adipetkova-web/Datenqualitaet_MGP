@@ -1,3 +1,0 @@
-datum,uhrzeit,station,sensor,t_trocken,t_feucht,luftdruck_hpa,bemerkung
-2026-09-01,19:30,20,1m,16.8,14.2,1008,"Beispielzeile - nicht echt"
-2026-09-01,19:35,20,3m,16.9,14.3,,"luftdruck leer = 1013,25 hPa"

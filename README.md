@@ -39,9 +39,10 @@ Ein kompletter Durchlauf dauert etwa 30 Sekunden.
 │   ├── 03_gradientenfehler.R    ← Auswirkung der Sensorabweichungen auf Gradienten
 │   └── 04_psychrometer.R        ← Vergleich mit dem Aspirationspsychrometer
 ├── data/
-│   ├── raw/AWS20 … AWS50/       ← Logger-Rohdaten (TOA5, Minutenwerte, UTC+1)
+│   ├── raw/AWS20 … AWS50/       ← Logger-Rohdaten Vergleichsmessung (TOA5, Minutenwerte, UTC+1)
+│   ├── raw/AWS20_Feld … _Feld/  ← Logger-Rohdaten Feldmessung
 │   ├── metadata/                ← Stations-Metadaten, Koordinaten, SVF, CLC-Karten, Variablenliste
-│   └── psychrometer/            ← hier die Psychrometer-Ablesungen eintragen
+│   └── psychrometer/            ← Psychrometer-Ablesungen der Feldmessung
 └── results/
     ├── tables/                  ← CSV-Ergebnisse
     └── figures/                 ← PNG-Abbildungen für den Bericht
@@ -107,19 +108,31 @@ Daraus lässt sich ableiten, ob die Felddaten mit den Offsets aus der Vergleichs
 
 ## Psychrometer-Vergleich (`04_psychrometer.R`)
 
-Das Skript ist fertig, es fehlen nur noch die Messwerte. Ablesungen in
-`data/psychrometer/psychrometer_messungen.csv` eintragen (Format siehe `psychrometer_BEISPIEL.csv`):
+Das Aspirationspsychrometer wurde bei der **Feldmessung** eingesetzt (eine Ablesung pro Standort am 03.09.). Verglichen wird deshalb mit den Feld-Daten:
 
 ```
-datum,uhrzeit,station,sensor,t_trocken,t_feucht,luftdruck_hpa,bemerkung
-2026-09-01,19:30,20,1m,16.8,14.2,,
+data/raw/AWS20_Feld/ABBA20_Meteo_Feld.dat   (usw. für Control, Fluxes, Wind, Rain und AWS30/40/50)
+data/psychrometer/psychrometer_messungen.csv
 ```
 
-- `uhrzeit` in **UTC+1** (wie die Logger)
-- `sensor` = neben welchem AWS-Sensor gemessen wurde (`1m` oder `3m`)
-- `luftdruck_hpa` darf leer bleiben → dann wird der Luftdruck der Station verwendet
+`psychrometer_messungen.csv`:
 
-Das Skript berechnet die relative Feuchte aus Trocken- und Feuchttemperatur (WMO-Psychrometerformel für ventilierte Psychrometer), mittelt die AWS-Werte über ±2 min um die Ablesung und vergleicht beides.
+```
+datum,uhrzeit,station,t_trocken,t_feucht,luftdruck_hpa,bemerkung
+2026-09-03,9:32,40,16.0,14.8,,
+```
+- Datum geht auch als `3.09` oder `03.09.2026`. `;` als Trennzeichen und Dezimalkomma (deutsches Excel) gehen auch.
+- `luftdruck_hpa` darf leer bleiben, dann wird der Luftdruck der Station verwendet.
+- Uhrzeiten in **UTC+1** wie die Logger (im Protokoll UTC, beim Eintragen +1 h). Einstellbar über `PSYCHRO_TZ` in `R/config.R`.
+
+Was das Skript macht:
+1. **Relative Feuchte aus Trocken- und Feuchttemperatur** (WMO-Psychrometerformel für ventilierte Psychrometer):
+   e = E(T_f) − A·p·(T − T_f), A = 6,53·10⁻⁴·(1 + 0,000944·T_f) K⁻¹, RH = e / E(T) · 100.
+   Dazu die Unsicherheit der Feuchte bei ±0,1 K Ablesegenauigkeit (~±1,5–2 %).
+2. AWS-Werte vom **unteren Sensor (1m)**, auf dessen Höhe das Psychrometer gemessen wurde, als Mittel über ±2 min um die Ablesung.
+3. Vergleich **roh und korrigiert** mit den Offsets aus der Vergleichsmessung. Liegen die korrigierten Werte näher am Psychrometer, spricht das für die Korrektur.
+
+Mit nur einer Ablesung pro Standort ist das eine Stichprobe, keine Kalibrierung.
 
 ---
 
