@@ -143,6 +143,56 @@ plot_boxplot <- function(v) {
     theme(axis.text.x = element_text(angle = 30, hjust = 1))
 }
 
+#### ENTWURF: Boxplots der quadrierten Abweichungen ####
+# Statt (Sensor - Referenz) wird (Sensor - Referenz)^2 pro Minute
+# geplottet -> alles >= 0. Der Mittelwert dieser Werte ist die MSD
+# (mean squared deviation), die Wurzel daraus die RMSD.
+# Raute = MSD, Zahl darueber = RMSD = Wurzel(MSD).
+
+squared_unit <- function(v, pct) {
+  if (pct) return("%²")
+  switch(v, air_temp = "K²", rel_hum = "%²", paste0("(", VARIABLES[[v]]$unit, ")²"))
+}
+
+plot_boxplot_squared <- function(v) {
+  cfg <- VARIABLES[[v]]
+  dev <- scatter_data(v)
+  s   <- stats_all[stats_all$variable_group == v, ]
+  pct <- cfg$tol_mode == "percent"
+
+  dev$y  <- (if (pct) dev$percent_deviation else dev$deviation)^2
+  unit   <- if (pct) "%" else cfg$unit
+  unit2  <- squared_unit(v, pct)
+
+  msd <- aggregate(y ~ panel, data = dev, FUN = mean)
+  lab <- data.frame(
+    panel = factor(sensor_label(s$comparison_variable), levels = levels(dev$panel)),
+    rmsd  = if (pct) s$RMSD_pct else s$RMSD
+  )
+  lab$y <- max(c(dev$y, cfg$tol^2), na.rm = TRUE) * 1.06
+  lab$label <- paste0("RMSD\n", fmt(lab$rmsd, 2))
+
+  ggplot(dev, aes(panel, y)) +
+    geom_hline(yintercept = 0, color = "grey40") +
+    geom_hline(yintercept = cfg$tol^2, linetype = "dashed", color = "firebrick", linewidth = 0.6) +
+    geom_boxplot(aes(fill = station), alpha = 0.55, width = 0.55,
+                 outlier.size = 0.9, outlier.alpha = 0.6) +
+    geom_point(data = msd, aes(panel, y), inherit.aes = FALSE,
+               shape = 23, size = 3, fill = "white", color = "black", stroke = 0.9) +
+    geom_text(data = lab, aes(panel, y, label = label), inherit.aes = FALSE,
+              size = 3.3, fontface = "bold", lineheight = 0.9, vjust = 0) +
+    scale_fill_manual(values = STATION_COLORS, guide = "none") +
+    scale_y_continuous(labels = dec_comma(), expand = expansion(mult = c(0.02, 0.18))) +
+    labs(title = paste(cfg$title, "– quadrierte Abweichung von der Referenz"),
+         subtitle = paste0("Referenz: ", sensor_label(s$reference_variable[1]), "  |  ", window_label(v)),
+         x = NULL,
+         y = paste0("(Sensor − Referenz)² (", unit2, ")"),
+         caption = paste0("Raute: Mittelwert der quadrierten Abweichungen (MSD).  Zahl: RMSD = √MSD in ", unit, ".\n",
+                          "Rot gestrichelt: Herstellergenauigkeit zum Quadrat (", cfg$tol_source, ").")) +
+    theme_mgp() +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+}
+
 #### Alles erzeugen ####
 
 for (v in names(VARIABLES)) {
@@ -162,4 +212,5 @@ for (v in names(VARIABLES)) {
   }
 
   save_png(plot_boxplot(v), file.path(FIGURE_DIR, paste0("boxplot_rmsd_", v, ".png")), FIG_SIZE$boxplot)
+  save_png(plot_boxplot_squared(v), file.path(FIGURE_DIR, paste0("boxplot_quadriert_", v, ".png")), FIG_SIZE$boxplot)
 }
