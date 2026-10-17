@@ -123,13 +123,13 @@ datum,uhrzeit,station,t_trocken,t_feucht,luftdruck_hpa,bemerkung
 ```
 - Datum geht auch als `3.09` oder `03.09.2026`. `;` als Trennzeichen und Dezimalkomma (deutsches Excel) gehen auch.
 - `luftdruck_hpa` darf leer bleiben, dann wird der Luftdruck der Station verwendet.
-- **Zeitzone der Uhrzeiten:** `PSYCHRO_TZ` in `R/config.R`. Die Logger laufen in UTC+1. Wurde die Uhrzeit vom Handy abgelesen (Sommerzeit, UTC+2), dort `"Etc/GMT-2"` eintragen.
+- Uhrzeiten in **UTC+1** wie die Logger (im Protokoll UTC, beim Eintragen +1 h). Einstellbar über `PSYCHRO_TZ` in `R/config.R`.
 
 Was das Skript macht:
 1. **Relative Feuchte aus Trocken- und Feuchttemperatur** (WMO-Psychrometerformel für ventilierte Psychrometer):
    e = E(T_f) − A·p·(T − T_f), A = 6,53·10⁻⁴·(1 + 0,000944·T_f) K⁻¹, RH = e / E(T) · 100.
    Dazu die Unsicherheit der Feuchte bei ±0,1 K Ablesegenauigkeit (~±1,5–2 %).
-2. AWS-Werte (1m- **und** 3m-Sensor) als Mittel über ±2 min um die Ablesung.
+2. AWS-Werte vom **unteren Sensor (1m)**, auf dessen Höhe das Psychrometer gemessen wurde, als Mittel über ±2 min um die Ablesung.
 3. Vergleich **roh und korrigiert** mit den Offsets aus der Vergleichsmessung. Liegen die korrigierten Werte näher am Psychrometer, spricht das für die Korrektur.
 
 Mit nur einer Ablesung pro Standort ist das eine Stichprobe, keine Kalibrierung.

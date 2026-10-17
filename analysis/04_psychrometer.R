@@ -11,7 +11,7 @@
 #
 # EINGABE: data/psychrometer/psychrometer_messungen.csv
 #   datum          z.B. 3.09 / 03.09.2026 / 2026-09-03
-#   uhrzeit        z.B. 9:32  (Zeitzone: PSYCHRO_TZ in R/config.R!)
+#   uhrzeit        z.B. 9:32  in UTC+1 (wie die Logger, siehe PSYCHRO_TZ)
 #   station        20, 30, 40 oder 50
 #   t_trocken      Trockentemperatur (Grad C)
 #   t_feucht       Feuchttemperatur (Grad C)
@@ -28,7 +28,8 @@
 #    T = Trocken-, Tf = Feuchttemperatur, p = Luftdruck (hPa).
 #
 # 2) AWS-Werte: Mittel ueber +/- PSYCHRO_AVG_HALF_WINDOW_MIN Minuten
-#    um die Ablesung, fuer den 1m- UND den 3m-Sensor.
+#    um die Ablesung, vom Sensor auf Psychrometer-Hoehe
+#    (PSYCHRO_SENSOR in R/config.R, hier der untere = 1m-Sensor).
 #
 # 3) Jeweils roh UND korrigiert mit den Offsets aus der
 #    Vergleichsmessung (Spalte bias in sensorvergleich_statistik.csv).
@@ -143,7 +144,7 @@ offset_of <- function(col) {
 
 rows <- list()
 for (i in seq_len(nrow(psy))) {
-  for (sensor in c("1m", "3m")) {
+  for (sensor in PSYCHRO_SENSOR) {
     for (v in c("air_temp", "rel_hum")) {
       col     <- paste0(v, "_", sensor, "_", psy$station[i])
       aws_raw <- aws_mean(col, psy$t[i])
@@ -198,7 +199,7 @@ plot_df <- bind_rows(
 ) %>%
   filter(!is.na(diff)) %>%
   mutate(panel = sapply(variable_group, axis_label),
-         x = paste0("AWS", station, " · ", sensor))
+         x = paste0("AWS", station))
 
 tol_df <- distinct(plot_df, panel, tol)
 
@@ -217,7 +218,7 @@ p <- ggplot(plot_df, aes(x, diff)) +
   scale_y_continuous(labels = dec_comma()) +
   labs(title = "AWS-Feldmessung vs. Aspirationspsychrometer",
        subtitle = paste0("Eine Ablesung pro Standort, AWS gemittelt über ±",
-                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min"),
+                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min, ", PSYCHRO_SENSOR, "-Sensor"),
        x = NULL, y = "Abweichung AWS − Psychrometer",
        caption = paste0("Rot gestrichelt: Herstellergenauigkeit der AWS-Sensoren.\n",
                         "Fehlerbalken: Unsicherheit des Psychrometers bei ±", fmt(u, 1),
