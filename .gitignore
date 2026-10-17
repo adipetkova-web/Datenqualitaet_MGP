@@ -1,0 +1,10 @@
+*.user
+.Rhistory
+.Rprofile
+.RData
+.Ruserdata
+.Rproj.user
+plots/*
+data/*
+renv/library/
+renv/staging/

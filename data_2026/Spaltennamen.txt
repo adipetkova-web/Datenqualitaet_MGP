@@ -1,0 +1,42 @@
+abs_hum         absolute Feuchte
+air_press       Luftdruck
+air_temp        Lufttemperatur
+Bat12V          Batteriespannung
+BR              Bowen Ratio
+CaseT           Lufttemperatur im Loggerkasten
+Control_Flag    Kontrollflag
+cov_TT          Varianz der virtuellen akustischen Temperatur
+cov_uT          Kovarianz von u-Komponente des Windes und virtueller akustischer Temperatur
+cov_uu          Varianz der u-Komponente des Windes
+cov_uv          Kovarianz von u- und v-Komponente des Windes
+cov_uw          Kovarianz von u- und 2-Komponente des Windes
+cov_vT          Kovarianz von v-Komponente des Windes und virtueller akustischer Temperatur
+cov_vv          Varianz der v-Komponente des Windes
+cov_vw          Kovarianz von v- und w-Komponente des Windes
+cov_wT          Kovarianz von w-Komponente des Windes und virtueller akustischer Temperatur
+cov_ww          Varianz der w-Komponente des Windes
+dpot_temp_dz    vertikaler Gradient der potentiellen Temperatur
+dspec_hum_dz    vertikaler Gradient der spezifischen Feuchte
+flag            Kontrollflag
+mixing_ratio    Mischungsverhältnis
+N_smpl          Anzahl der Einzelmessungen des Ultraschallanemometers
+pot_temp        potentielle Temperatur
+prcp            Niederschlag
+QH              Sensibler Wärmestrom
+QE              Latenter Wärmestrom
+rel_hum         relative Feuchte
+R_net           Nettostrahlung
+R_sw_d          einfallende kurzwellige Strahlung
+sat_press       Sättigungsdampfdruck
+sigma_wdir      Standardabweichung der Windrichtung
+spec_hum        spezifische Feuchte
+t               Zeit
+tke             turbulente kinetische Energie
+u               u-Komponente des Windes
+v               v-Komponente des Windes
+vap_press       Dampfdruck
+virt_ac_temp    virtuelle akustische Temperatur
+virt_temp       virtuelle Temperatur
+w               w-Komponente des Windes
+wdir            Windrichtung
+wspeed          Windgeschwindigkeit
