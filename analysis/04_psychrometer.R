@@ -1,123 +1,228 @@
 # ============================================================
-# 04_psychrometer.R — Vergleich mit dem Aspirationspsychrometer
+# 04_psychrometer.R — Feldmessung vs. Aspirationspsychrometer
 #
 # Aufgabe laut Rueckmeldung: Vergleichsmessungen mit dem
-# Aspirationspsychrometer (Assmann) mit den AWS-Daten vergleichen.
+# Aspirationspsychrometer mit den AWS-Daten vergleichen.
 # Gab es Unterschiede? Wie gross? Auswirkungen auf die Analysen?
 #
-# EINGABE: data/psychrometer/psychrometer_messungen.csv
-#   (Vorlage mit Beispielzeilen: psychrometer_BEISPIEL.csv)
+# Das Psychrometer wurde bei der FELDmessung eingesetzt (eine Ablesung
+# pro Standort). Verglichen wird deshalb mit den Feld-Daten in
+# data/raw/AWS<nr>_Feld/.
 #
-#   datum          JJJJ-MM-TT
-#   uhrzeit        HH:MM in UTC+1 (gleiche Zeitzone wie die Logger!)
+# EINGABE: data/psychrometer/psychrometer_messungen.csv
+#   datum          z.B. 3.09 / 03.09.2026 / 2026-09-03
+#   uhrzeit        z.B. 9:32  (Zeitzone: PSYCHRO_TZ in R/config.R!)
 #   station        20, 30, 40 oder 50
-#   sensor         1m oder 3m - neben welchem AWS-Sensor gemessen wurde
 #   t_trocken      Trockentemperatur (Grad C)
 #   t_feucht       Feuchttemperatur (Grad C)
-#   luftdruck_hpa  optional; leer = Luftdruck der Station (Control-Datei)
+#   luftdruck_hpa  optional; fehlt/leer = Luftdruck der Station
 #   bemerkung      optional
+#   Trennzeichen , oder ; und Dezimalpunkt oder -komma gehen beide
+#   (also auch direkt aus deutschem Excel als CSV gespeichert).
 #
-# Berechnung der relativen Feuchte (Psychrometerformel nach WMO,
-# ventiliertes Assmann-Psychrometer):
-#   e  = E(Tf) - A * p * (T - Tf),   A = 6,53e-4 * (1 + 0,000944 * Tf)  [1/K]
-#   RH = e / E(T) * 100
-#   E() = Saettigungsdampfdruck, Magnus-Formel aus R/course/met.R
+# 1) Relative Feuchte aus dem Psychrometer (WMO-Psychrometerformel,
+#    ventiliertes Assmann-Psychrometer):
+#      e  = E(Tf) - A * p * (T - Tf),  A = 6,53e-4 * (1 + 0,000944 * Tf)  [1/K]
+#      RH = e / E(T) * 100
+#    E() = Saettigungsdampfdruck (Magnus-Formel aus R/course/met.R),
+#    T = Trocken-, Tf = Feuchttemperatur, p = Luftdruck (hPa).
 #
-# Die AWS-Werte werden als Mittel ueber +/- AVG_HALF_WINDOW_MIN
-# Minuten um den Ablesezeitpunkt genommen.
+# 2) AWS-Werte: Mittel ueber +/- PSYCHRO_AVG_HALF_WINDOW_MIN Minuten
+#    um die Ablesung, fuer den 1m- UND den 3m-Sensor.
+#
+# 3) Jeweils roh UND korrigiert mit den Offsets aus der
+#    Vergleichsmessung (Spalte bias in sensorvergleich_statistik.csv).
+#    Wenn die korrigierten Werte naeher am Psychrometer liegen,
+#    spricht das fuer die Korrektur.
 #
 # Ausgabe:
-#   results/tables/psychrometer_vergleich.csv     jede Ablesung mit AWS-Wert
-#   results/tables/psychrometer_zusammenfassung.csv  pro Sensor
+#   results/tables/psychrometer_vergleich.csv
 #   results/figures/psychrometer_vergleich.png
 # ============================================================
 
 source("R/helpers.R")
 
-AVG_HALF_WINDOW_MIN <- 2
+section("Aspirationspsychrometer vs. Feldmessung")
 
-section("Aspirationspsychrometer")
+#### Psychrometer-Tabelle einlesen ####
 
-if (!file.exists(PSYCHRO_CSV)) stop("Datei fehlt: ", PSYCHRO_CSV)
-psy <- read.csv(PSYCHRO_CSV, stringsAsFactors = FALSE, colClasses = c(station = "character"))
+read_psychro <- function(file) {
+  first <- readLines(file, n = 1, warn = FALSE)
+  sep   <- if (grepl(";", first)) ";" else ","
+  psy   <- read.csv(file, sep = sep, stringsAsFactors = FALSE, colClasses = "character",
+                    strip.white = TRUE, fileEncoding = "UTF-8-BOM")
+  names(psy) <- tolower(trimws(names(psy)))
+  psy <- psy[rowSums(psy != "" & !is.na(psy)) > 0, , drop = FALSE]   # leere Zeilen weg
 
-if (nrow(psy) == 0) {
-  message("Noch keine Psychrometer-Messungen in ", PSYCHRO_CSV, " eingetragen - Schritt wird uebersprungen.\n",
-          "Format siehe data/psychrometer/psychrometer_BEISPIEL.csv")
-} else {
+  need <- c("datum", "uhrzeit", "station", "t_trocken", "t_feucht")
+  if (!all(need %in% names(psy))) stop("Spalten fehlen in ", file, ": ", paste(setdiff(need, names(psy)), collapse = ", "))
 
-  psy$t <- as_time(paste(psy$datum, psy$uhrzeit))
-  if (any(is.na(psy$t))) stop("Datum/Uhrzeit nicht lesbar in Zeile(n): ", paste(which(is.na(psy$t)), collapse = ", "))
+  num <- function(x) as.numeric(gsub(",", ".", x))
+  psy$t_trocken <- num(psy$t_trocken)
+  psy$t_feucht  <- num(psy$t_feucht)
+  psy$luftdruck_hpa <- if ("luftdruck_hpa" %in% names(psy)) num(psy$luftdruck_hpa) else NA_real_
+  psy$station <- trimws(psy$station)
 
-  #### Passende AWS-Werte ####
-
-  # Die Control-Datei (u.a. Luftdruck) ist stuendlich -> Lesefenster
-  # auf volle Stunden mit etwas Puffer runden
-  t_start <- as_time(format(min(psy$t) - 2 * 3600, "%Y-%m-%d %H:00:00"))
-  t_end   <- as_time(format(max(psy$t) + 3 * 3600, "%Y-%m-%d %H:00:00"))
-  aws <- read_stations(t_start, t_end)
-
-  aws_mean <- function(col, t) {
-    if (!col %in% names(aws)) return(NA_real_)
-    sel <- abs(as.numeric(difftime(aws$t, t, units = "mins"))) <= AVG_HALF_WINDOW_MIN
-    mean(safe_numeric(aws[[col]][sel]), na.rm = TRUE)
+  # Datum: "3.09", "3.09.", "03.09.2026", "2026-09-03"
+  parse_date <- function(d) {
+    d <- trimws(gsub(",", ".", d))
+    if (grepl("^\\d{4}-\\d{1,2}-\\d{1,2}$", d)) return(as.Date(d))
+    p <- strsplit(sub("\\.$", "", d), ".", fixed = TRUE)[[1]]
+    if (length(p) == 2) p <- c(p, FIELD_YEAR)
+    if (length(p) != 3) return(as.Date(NA))
+    as.Date(sprintf("%s-%02d-%02d", p[3], as.integer(p[2]), as.integer(p[1])))
   }
+  datum <- do.call(c, lapply(psy$datum, parse_date))
+  zeit  <- sub("^(\\d{1,2}:\\d{2})(:\\d{2})?$", "\\1", trimws(psy$uhrzeit))
 
-  #### Psychrometer: relative Feuchte berechnen ####
+  # Ablesezeit in der notierten Zeitzone -> in Logger-Zeit (UTC+1) umrechnen
+  t_local <- as.POSIXct(paste(datum, zeit), format = "%Y-%m-%d %H:%M", tz = PSYCHRO_TZ)
+  psy$t   <- as.POSIXct(format(t_local, tz = TZ), tz = TZ)
 
-  # Luftdruck: Eingabe aus der Tabelle, sonst Messwert der Station
-  psy$air_press_aws <- mapply(function(st, t) aws_mean(paste0("air_press_", st), t), psy$station, psy$t)
-  p <- ifelse(is.na(psy$luftdruck_hpa), psy$air_press_aws, psy$luftdruck_hpa)
-  p[is.na(p)] <- 1013.25
-
-  E_tf <- met_vap_press(psy$t_feucht, 100)
-  E_t  <- met_vap_press(psy$t_trocken, 100)
-  A    <- 6.53e-4 * (1 + 0.000944 * psy$t_feucht)
-  e    <- E_tf - A * p * (psy$t_trocken - psy$t_feucht)
-  psy$rh_psychro <- 100 * e / E_t
-
-  psy$t_aws  <- mapply(function(st, s, t) aws_mean(paste0("air_temp_", s, "_", st), t), psy$station, psy$sensor, psy$t)
-  psy$rh_aws <- mapply(function(st, s, t) aws_mean(paste0("rel_hum_", s, "_", st), t), psy$station, psy$sensor, psy$t)
-
-  psy$diff_t  <- psy$t_aws  - psy$t_trocken     # AWS - Psychrometer
-  psy$diff_rh <- psy$rh_aws - psy$rh_psychro
-
-  write_table(psy, "psychrometer_vergleich.csv")
-
-  summary_tab <- psy %>%
-    group_by(station, sensor) %>%
-    summarise(n = n(),
-              bias_t = mean(diff_t, na.rm = TRUE),  rmsd_t = sqrt(mean(diff_t^2, na.rm = TRUE)),
-              bias_rh = mean(diff_rh, na.rm = TRUE), rmsd_rh = sqrt(mean(diff_rh^2, na.rm = TRUE)),
-              .groups = "drop")
-  write_table(summary_tab, "psychrometer_zusammenfassung.csv")
-  print(summary_tab, n = Inf)
-
-  #### Abbildung ####
-
-  long <- bind_rows(
-    data.frame(var = "air_temp", station = psy$station, sensor = psy$sensor, diff = psy$diff_t),
-    data.frame(var = "rel_hum",  station = psy$station, sensor = psy$sensor, diff = psy$diff_rh)
-  )
-  long$panel <- sapply(long$var, function(v) axis_label(v))
-  tol <- data.frame(panel = sapply(c("air_temp", "rel_hum"), axis_label),
-                    tol = c(VARIABLES$air_temp$tol, VARIABLES$rel_hum$tol))
-
-  p <- ggplot(long, aes(paste0("AWS", station, " · ", sensor), diff, color = station)) +
-    geom_hline(yintercept = 0, color = "grey40") +
-    geom_hline(data = tol, aes(yintercept = tol), linetype = "dashed", color = "firebrick") +
-    geom_hline(data = tol, aes(yintercept = -tol), linetype = "dashed", color = "firebrick") +
-    geom_point(size = 2.8, alpha = 0.8, position = position_jitter(width = 0.08, height = 0)) +
-    facet_wrap(~ panel, scales = "free_y") +
-    scale_color_manual(values = STATION_COLORS, guide = "none") +
-    scale_y_continuous(labels = dec_comma()) +
-    labs(title = "AWS-Sensoren vs. Aspirationspsychrometer",
-         subtitle = paste0("Abweichung AWS − Psychrometer, AWS gemittelt über ±",
-                           AVG_HALF_WINDOW_MIN, " min um die Ablesung"),
-         x = NULL, y = "Abweichung AWS − Psychrometer",
-         caption = "Rot gestrichelt: Messgenauigkeit der AWS-Sensoren laut Hersteller.") +
-    theme_mgp() +
-    theme(axis.text.x = element_text(angle = 30, hjust = 1))
-
-  save_png(p, file.path(FIGURE_DIR, "psychrometer_vergleich.png"), FIG_SIZE$psychrometer)
+  bad <- which(is.na(psy$t) | is.na(psy$t_trocken) | is.na(psy$t_feucht) | !psy$station %in% STATIONS)
+  if (length(bad) > 0) stop("Zeile(n) ", paste(bad + 1, collapse = ", "), " in ", file,
+                            " nicht lesbar (Datum, Uhrzeit, Station oder Temperatur).")
+  if (any(psy$t_feucht > psy$t_trocken)) warning("Feuchttemperatur > Trockentemperatur - Spalten vertauscht?")
+  psy
 }
+
+# Relative Feuchte (%) aus Trocken-/Feuchttemperatur und Luftdruck
+psychro_rh <- function(t_dry, t_wet, p_hpa) {
+  E_wet <- met_vap_press(t_wet, 100)
+  E_dry <- met_vap_press(t_dry, 100)
+  A     <- 6.53e-4 * (1 + 0.000944 * t_wet)
+  e     <- E_wet - A * p_hpa * (t_dry - t_wet)
+  100 * e / E_dry
+}
+
+psy <- read_psychro(PSYCHRO_CSV)
+if (nrow(psy) == 0) stop("Keine Psychrometer-Messungen in ", PSYCHRO_CSV)
+cat(nrow(psy), "Ablesungen eingelesen.\n")
+
+#### Feld-Daten um die Ablesezeiten einlesen ####
+
+# Control-Datei (u.a. Luftdruck) ist stuendlich -> auf volle Stunden runden, mit Puffer
+t_start <- as_time(format(min(psy$t) - 2 * 3600, "%Y-%m-%d %H:00:00"))
+t_end   <- as_time(format(max(psy$t) + 3 * 3600, "%Y-%m-%d %H:00:00"))
+field   <- read_stations(t_start, t_end, suffix = FIELD_SUFFIX, z = FIELD_STATION_Z)
+
+aws_mean <- function(col, t) {
+  if (!col %in% names(field)) return(NA_real_)
+  sel <- abs(as.numeric(difftime(field$t, t, units = "mins"))) <= PSYCHRO_AVG_HALF_WINDOW_MIN
+  v <- safe_numeric(field[[col]][sel])
+  if (all(is.na(v))) NA_real_ else mean(v, na.rm = TRUE)
+}
+
+#### Psychrometer: Feuchte + Unsicherheit ####
+
+psy$air_press_aws <- mapply(function(st, t) aws_mean(paste0("air_press_", st), t), psy$station, psy$t)
+psy$p_used <- ifelse(is.na(psy$luftdruck_hpa), psy$air_press_aws, psy$luftdruck_hpa)
+psy$p_used[is.na(psy$p_used)] <- 1013.25
+
+psy$rh_psychro <- psychro_rh(psy$t_trocken, psy$t_feucht, psy$p_used)
+
+# Unsicherheit der berechneten Feuchte durch die Ablesegenauigkeit:
+# ungünstigste Kombination (Trocken +u, Feucht -u und umgekehrt)
+u <- PSYCHRO_READ_UNC_K
+psy$rh_psychro_unc <- pmax(
+  abs(psychro_rh(psy$t_trocken + u, psy$t_feucht - u, psy$p_used) - psy$rh_psychro),
+  abs(psychro_rh(psy$t_trocken - u, psy$t_feucht + u, psy$p_used) - psy$rh_psychro)
+)
+
+#### Offsets aus der Vergleichsmessung ####
+
+stats_file <- file.path(TABLE_DIR, "sensorvergleich_statistik.csv")
+if (!file.exists(stats_file)) stop("Zuerst analysis/01_sensorvergleich.R ausfuehren (", stats_file, " fehlt).")
+offsets <- read.csv(stats_file, stringsAsFactors = FALSE)
+offset_of <- function(col) {
+  b <- offsets$bias[offsets$comparison_variable == col]
+  if (length(b) == 0) 0 else b      # Referenzsensor hat per Definition Offset 0
+}
+
+#### Vergleich pro Ablesung, Sensor und Variable ####
+
+rows <- list()
+for (i in seq_len(nrow(psy))) {
+  for (sensor in c("1m", "3m")) {
+    for (v in c("air_temp", "rel_hum")) {
+      col     <- paste0(v, "_", sensor, "_", psy$station[i])
+      aws_raw <- aws_mean(col, psy$t[i])
+      ref_val <- if (v == "air_temp") psy$t_trocken[i] else psy$rh_psychro[i]
+      rows[[length(rows) + 1]] <- data.frame(
+        station = psy$station[i], t = format(psy$t[i], "%Y-%m-%d %H:%M"), sensor = sensor,
+        variable_group = v, psychrometer = ref_val,
+        psychrometer_unc = if (v == "air_temp") u else psy$rh_psychro_unc[i],
+        aws_raw = aws_raw, offset_test = offset_of(col),
+        aws_corrected = aws_raw - offset_of(col),
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+}
+cmp <- bind_rows(rows)
+cmp$diff_raw       <- cmp$aws_raw - cmp$psychrometer
+cmp$diff_corrected <- cmp$aws_corrected - cmp$psychrometer
+cmp$tol            <- sapply(cmp$variable_group, function(v) VARIABLES[[v]]$tol)
+cmp$within_tol_raw <- abs(cmp$diff_raw) <= cmp$tol
+
+write_table(cmp, "psychrometer_vergleich.csv")
+
+if (all(is.na(cmp$aws_raw))) {
+  stop("Keine AWS-Feldwerte zu den Ablesezeiten gefunden. Zeitraum der Feld-Dateien und ",
+       "PSYCHRO_TZ in R/config.R pruefen.")
+}
+
+cat("\nPsychrometer-Feuchte:\n")
+print(data.frame(station = psy$station, zeit_UTC1 = format(psy$t, "%d.%m. %H:%M"),
+                 T = psy$t_trocken, Tf = psy$t_feucht, p_hPa = round(psy$p_used, 1),
+                 RH = round(psy$rh_psychro, 1), RH_unc = round(psy$rh_psychro_unc, 1)), row.names = FALSE)
+
+cat("\nAbweichung AWS - Psychrometer (roh / korrigiert):\n")
+print(cmp %>% transmute(station, sensor, variable_group,
+                        psychro = round(psychrometer, 2), aws = round(aws_raw, 2),
+                        diff_roh = round(diff_raw, 2), diff_korr = round(diff_corrected, 2)),
+      row.names = FALSE)
+
+cat("\nRMSD ueber alle Stationen (roh -> korrigiert):\n")
+print(cmp %>% group_by(variable_group, sensor) %>%
+        summarise(n = sum(!is.na(diff_raw)),
+                  bias_roh = mean(diff_raw, na.rm = TRUE), rmsd_roh = sqrt(mean(diff_raw^2, na.rm = TRUE)),
+                  bias_korr = mean(diff_corrected, na.rm = TRUE), rmsd_korr = sqrt(mean(diff_corrected^2, na.rm = TRUE)),
+                  .groups = "drop") %>% mutate(across(where(is.numeric), ~ round(.x, 2))))
+
+#### Abbildung ####
+
+plot_df <- bind_rows(
+  cmp %>% transmute(variable_group, station, sensor, tol, psychrometer_unc, diff = diff_raw,       version = "roh"),
+  cmp %>% transmute(variable_group, station, sensor, tol, psychrometer_unc, diff = diff_corrected, version = "korrigiert (Offset Vergleichsmessung)")
+) %>%
+  filter(!is.na(diff)) %>%
+  mutate(panel = sapply(variable_group, axis_label),
+         x = paste0("AWS", station, " · ", sensor))
+
+tol_df <- distinct(plot_df, panel, tol)
+
+p <- ggplot(plot_df, aes(x, diff)) +
+  geom_hline(yintercept = 0, color = "grey40") +
+  geom_hline(data = tol_df, aes(yintercept = tol),  linetype = "dashed", color = "firebrick") +
+  geom_hline(data = tol_df, aes(yintercept = -tol), linetype = "dashed", color = "firebrick") +
+  geom_errorbar(aes(ymin = diff - psychrometer_unc, ymax = diff + psychrometer_unc,
+                    color = station, group = version),
+                width = 0.15, alpha = 0.5, position = position_dodge(width = 0.4)) +
+  geom_point(aes(color = station, shape = version, group = version), size = 3, stroke = 1.1,
+             position = position_dodge(width = 0.4)) +
+  facet_wrap(~ panel, scales = "free_y") +
+  scale_color_manual(values = STATION_COLORS, guide = "none") +
+  scale_shape_manual(values = c("roh" = 16, "korrigiert (Offset Vergleichsmessung)" = 1), name = NULL) +
+  scale_y_continuous(labels = dec_comma()) +
+  labs(title = "AWS-Feldmessung vs. Aspirationspsychrometer",
+       subtitle = paste0("Eine Ablesung pro Standort, AWS gemittelt über ±",
+                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min"),
+       x = NULL, y = "Abweichung AWS − Psychrometer",
+       caption = paste0("Rot gestrichelt: Herstellergenauigkeit der AWS-Sensoren.\n",
+                        "Fehlerbalken: Unsicherheit des Psychrometers bei ±", fmt(u, 1),
+                        " K Ablesegenauigkeit.")) +
+  theme_mgp() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "bottom")
+
+save_png(p, file.path(FIGURE_DIR, "psychrometer_vergleich.png"), FIG_SIZE$psychrometer)

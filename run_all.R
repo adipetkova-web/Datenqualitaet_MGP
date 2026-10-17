@@ -13,6 +13,11 @@
 source("analysis/01_sensorvergleich.R")
 source("analysis/02_abbildungen.R")
 source("analysis/03_gradientenfehler.R")
-source("analysis/04_psychrometer.R")
+# Psychrometer-Vergleich nur, wenn die Feld-Daten vorhanden sind
+if (all(dir.exists(file.path(DATA_DIR, paste0("AWS", STATIONS, FIELD_SUFFIX))))) {
+  source("analysis/04_psychrometer.R")
+} else {
+  message("Feld-Daten (data/raw/AWS<nr>", FIELD_SUFFIX, ") fehlen - Psychrometer-Vergleich uebersprungen.")
+}
 
 cat("\nFertig. Ergebnisse in results/\n")

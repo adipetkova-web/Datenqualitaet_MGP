@@ -55,12 +55,16 @@ safe_numeric <- function(x) suppressWarnings(as.numeric(x))
 # nicht mehrfach eingelesen wird.
 .read_cache <- new.env()
 
-read_stations <- function(t0, t1, agg_minutes = AGG_MINUTES) {
-  key <- paste(format(t0), format(t1), agg_minutes)
+#   suffix = ""      -> Vergleichsmessung (data/raw/AWS20)
+#   suffix = "_Feld" -> Feldmessung      (data/raw/AWS20_Feld), z = FIELD_STATION_Z
+read_stations <- function(t0, t1, agg_minutes = AGG_MINUTES, suffix = "", z = STATION_Z) {
+  key <- paste(format(t0), format(t1), agg_minutes, suffix)
   if (!is.null(.read_cache[[key]])) return(.read_cache[[key]])
 
-  dz    <- STATION_Z - min(STATION_Z)
-  paths <- file.path(DATA_DIR, paste0("AWS", STATIONS))
+  dz    <- z - min(z)
+  paths <- file.path(DATA_DIR, paste0("AWS", STATIONS, suffix))
+  missing <- paths[!dir.exists(paths)]
+  if (length(missing) > 0) stop("Ordner nicht gefunden: ", paste(missing, collapse = ", "))
 
   per_station <- lapply(seq_along(STATIONS), function(i) {
     raw <- AWS_read_data(paths[i], t0 = t0, t1 = t1, dz = dz[i])
