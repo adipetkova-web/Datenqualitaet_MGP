@@ -165,32 +165,61 @@ plot_boxplot_squared <- function(v) {
   unit2  <- squared_unit(v, pct)
 
   msd <- aggregate(y ~ panel, data = dev, FUN = mean)
+
+  # y-Achse auf die Boxen zoomen: Obergrenze = groesster Whisker / MSD.
+  # Werte darueber werden nicht gezeichnet, sondern gezaehlt.
+  whisker_top <- aggregate(y ~ panel, data = dev, FUN = function(x) {
+    q <- quantile(x, c(.25, .75)); max(x[x <= q[2] + 1.5 * diff(q)])
+  })
+  y_max <- max(c(whisker_top$y, msd$y), na.rm = TRUE) * 1.15
+  show_tol <- cfg$tol^2 <= y_max * 1.5        # Toleranzlinie nur, wenn sie in die Skala passt
+  if (show_tol) y_max <- max(y_max, cfg$tol^2 * 1.08)
+
+  hidden <- aggregate(y ~ panel, data = dev, FUN = function(x) sum(x > y_max))
   lab <- data.frame(
     panel = factor(sensor_label(s$comparison_variable), levels = levels(dev$panel)),
     rmsd  = if (pct) s$RMSD_pct else s$RMSD
   )
-  lab$y <- max(c(dev$y, cfg$tol^2), na.rm = TRUE) * 1.06
-  lab$label <- paste0("RMSD\n", fmt(lab$rmsd, 2))
+  lab$hidden <- hidden$y[match(lab$panel, hidden$panel)]
+  lab$y <- y_max * 1.04
+  lab$label <- paste0("RMSD\n", fmt(lab$rmsd, 2),
+                      ifelse(lab$hidden > 0, paste0("\n(", lab$hidden, " Werte \u2191)"), ""))
 
-  ggplot(dev, aes(panel, y)) +
+  tol_note <- if (show_tol) {
+    paste0("Rot gestrichelt: Herstellergenauigkeit zum Quadrat (", cfg$tol_source, ").")
+  } else {
+    paste0("Herstellergenauigkeit zum Quadrat = ", fmt(cfg$tol^2, 0), " ", unit2,
+           " liegt weit oberhalb der Achse\n(", cfg$tol_source, ").")
+  }
+
+  # Ausreisser selbst zeichnen, aber nur die innerhalb der Achse
+  # (Box-Statistik wird trotzdem aus ALLEN Werten berechnet)
+  out_pts <- do.call(rbind, lapply(split(dev, dev$panel), function(d) {
+    q <- quantile(d$y, c(.25, .75)); d[d$y > q[2] + 1.5 * diff(q) & d$y <= y_max, ]
+  }))
+
+  p <- ggplot(dev, aes(panel, y)) +
     geom_hline(yintercept = 0, color = "grey40") +
-    geom_hline(yintercept = cfg$tol^2, linetype = "dashed", color = "firebrick", linewidth = 0.6) +
-    geom_boxplot(aes(fill = station), alpha = 0.55, width = 0.55,
-                 outlier.size = 0.9, outlier.alpha = 0.6) +
+    geom_boxplot(aes(fill = station), alpha = 0.55, width = 0.55, outlier.shape = NA) +
+    geom_point(data = out_pts, aes(panel, y), inherit.aes = FALSE, size = 0.9, alpha = 0.6) +
     geom_point(data = msd, aes(panel, y), inherit.aes = FALSE,
                shape = 23, size = 3, fill = "white", color = "black", stroke = 0.9) +
     geom_text(data = lab, aes(panel, y, label = label), inherit.aes = FALSE,
               size = 3.3, fontface = "bold", lineheight = 0.9, vjust = 0) +
     scale_fill_manual(values = STATION_COLORS, guide = "none") +
-    scale_y_continuous(labels = dec_comma(), expand = expansion(mult = c(0.02, 0.18))) +
-    labs(title = paste(cfg$title, "– quadrierte Abweichung von der Referenz"),
+    scale_y_continuous(labels = dec_comma()) +
+    coord_cartesian(ylim = c(0, y_max * 1.22)) +
+    labs(title = paste(cfg$title, "\u2013 quadrierte Abweichung von der Referenz"),
          subtitle = paste0("Referenz: ", sensor_label(s$reference_variable[1]), "  |  ", window_label(v)),
          x = NULL,
-         y = paste0("(Sensor − Referenz)² (", unit2, ")"),
-         caption = paste0("Raute: Mittelwert der quadrierten Abweichungen (MSD).  Zahl: RMSD = √MSD in ", unit, ".\n",
-                          "Rot gestrichelt: Herstellergenauigkeit zum Quadrat (", cfg$tol_source, ").")) +
+         y = paste0("(Sensor \u2212 Referenz)\u00b2 (", unit2, ")"),
+         caption = paste0("Raute: Mittelwert der quadrierten Abweichungen (MSD).  Zahl: RMSD = \u221aMSD in ", unit, ".\n",
+                          "(n Werte \u2191): Ausrei\u00dfer oberhalb der Achse, nicht gezeichnet, aber in MSD/RMSD enthalten.\n",
+                          tol_note)) +
     theme_mgp() +
     theme(axis.text.x = element_text(angle = 30, hjust = 1))
+  if (show_tol) p <- p + geom_hline(yintercept = cfg$tol^2, linetype = "dashed", color = "firebrick", linewidth = 0.6)
+  p
 }
 
 #### Alles erzeugen ####
