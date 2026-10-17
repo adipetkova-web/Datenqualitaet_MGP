@@ -1,10 +1,22 @@
-*.user
+# R / RStudio
 .Rhistory
-.Rprofile
 .RData
 .Ruserdata
-.Rproj.user
-plots/*
-data/*
+.Rproj.user/
+*.Rproj.user
+
+# renv: Bibliothek lokal, nur renv.lock wird versioniert
 renv/library/
 renv/staging/
+renv/local/
+.Rprofile
+
+# alte Zwischenausgaben (werden nicht mehr erzeugt)
+alle_plots_*.zip
+lineplots/
+scatter_*/
+
+# OS
+.DS_Store
+Thumbs.db
+~$*
