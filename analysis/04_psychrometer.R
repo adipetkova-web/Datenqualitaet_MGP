@@ -31,10 +31,7 @@
 #    um die Ablesung, vom Sensor auf Psychrometer-Hoehe
 #    (PSYCHRO_SENSOR in R/config.R, hier der untere = 1m-Sensor).
 #
-# 3) Jeweils roh UND korrigiert mit den Offsets aus der
-#    Vergleichsmessung (Spalte bias in sensorvergleich_statistik.csv).
-#    Wenn die korrigierten Werte naeher am Psychrometer liegen,
-#    spricht das fuer die Korrektur.
+# 3) Differenz AWS - Psychrometer (Rohwerte, ohne Offset-Korrektur).
 #
 # Ausgabe:
 #   results/tables/psychrometer_vergleich.csv
@@ -130,16 +127,6 @@ psy$rh_psychro_unc <- pmax(
   abs(psychro_rh(psy$t_trocken - u, psy$t_feucht + u, psy$p_used) - psy$rh_psychro)
 )
 
-#### Offsets aus der Vergleichsmessung ####
-
-stats_file <- file.path(TABLE_DIR, "sensorvergleich_statistik.csv")
-if (!file.exists(stats_file)) stop("Zuerst analysis/01_sensorvergleich.R ausfuehren (", stats_file, " fehlt).")
-offsets <- read.csv(stats_file, stringsAsFactors = FALSE)
-offset_of <- function(col) {
-  b <- offsets$bias[offsets$comparison_variable == col]
-  if (length(b) == 0) 0 else b      # Referenzsensor hat per Definition Offset 0
-}
-
 #### Vergleich pro Ablesung, Sensor und Variable ####
 
 rows <- list()
@@ -153,22 +140,20 @@ for (i in seq_len(nrow(psy))) {
         station = psy$station[i], t = format(psy$t[i], "%Y-%m-%d %H:%M"), sensor = sensor,
         variable_group = v, psychrometer = ref_val,
         psychrometer_unc = if (v == "air_temp") u else psy$rh_psychro_unc[i],
-        aws_raw = aws_raw, offset_test = offset_of(col),
-        aws_corrected = aws_raw - offset_of(col),
+        aws = aws_raw,
         stringsAsFactors = FALSE
       )
     }
   }
 }
 cmp <- bind_rows(rows)
-cmp$diff_raw       <- cmp$aws_raw - cmp$psychrometer
-cmp$diff_corrected <- cmp$aws_corrected - cmp$psychrometer
-cmp$tol            <- sapply(cmp$variable_group, function(v) VARIABLES[[v]]$tol)
-cmp$within_tol_raw <- abs(cmp$diff_raw) <= cmp$tol
+cmp$diff       <- cmp$aws - cmp$psychrometer
+cmp$tol        <- sapply(cmp$variable_group, function(v) VARIABLES[[v]]$tol)
+cmp$within_tol <- abs(cmp$diff) <= cmp$tol
 
 write_table(cmp, "psychrometer_vergleich.csv")
 
-if (all(is.na(cmp$aws_raw))) {
+if (all(is.na(cmp$aws))) {
   stop("Keine AWS-Feldwerte zu den Ablesezeiten gefunden. Zeitraum der Feld-Dateien und ",
        "PSYCHRO_TZ in R/config.R pruefen.")
 }
@@ -178,25 +163,20 @@ print(data.frame(station = psy$station, zeit_UTC1 = format(psy$t, "%d.%m. %H:%M"
                  T = psy$t_trocken, Tf = psy$t_feucht, p_hPa = round(psy$p_used, 1),
                  RH = round(psy$rh_psychro, 1), RH_unc = round(psy$rh_psychro_unc, 1)), row.names = FALSE)
 
-cat("\nAbweichung AWS - Psychrometer (roh / korrigiert):\n")
+cat("\nAbweichung AWS - Psychrometer:\n")
 print(cmp %>% transmute(station, sensor, variable_group,
-                        psychro = round(psychrometer, 2), aws = round(aws_raw, 2),
-                        diff_roh = round(diff_raw, 2), diff_korr = round(diff_corrected, 2)),
+                        psychro = round(psychrometer, 2), aws = round(aws, 2), diff = round(diff, 2)),
       row.names = FALSE)
 
-cat("\nRMSD ueber alle Stationen (roh -> korrigiert):\n")
+cat("\nUeber alle Stationen:\n")
 print(cmp %>% group_by(variable_group, sensor) %>%
-        summarise(n = sum(!is.na(diff_raw)),
-                  bias_roh = mean(diff_raw, na.rm = TRUE), rmsd_roh = sqrt(mean(diff_raw^2, na.rm = TRUE)),
-                  bias_korr = mean(diff_corrected, na.rm = TRUE), rmsd_korr = sqrt(mean(diff_corrected^2, na.rm = TRUE)),
+        summarise(n = sum(!is.na(diff)),
+                  bias = mean(diff, na.rm = TRUE), rmsd = sqrt(mean(diff^2, na.rm = TRUE)),
                   .groups = "drop") %>% mutate(across(where(is.numeric), ~ round(.x, 2))))
 
 #### Abbildung ####
 
-plot_df <- bind_rows(
-  cmp %>% transmute(variable_group, station, sensor, tol, psychrometer_unc, diff = diff_raw,       version = "roh"),
-  cmp %>% transmute(variable_group, station, sensor, tol, psychrometer_unc, diff = diff_corrected, version = "korrigiert (Offset Vergleichsmessung)")
-) %>%
+plot_df <- cmp %>%
   filter(!is.na(diff)) %>%
   mutate(panel = sapply(variable_group, axis_label),
          x = paste0("AWS", station))
@@ -207,14 +187,11 @@ p <- ggplot(plot_df, aes(x, diff)) +
   geom_hline(yintercept = 0, color = "grey40") +
   geom_hline(data = tol_df, aes(yintercept = tol),  linetype = "dashed", color = "firebrick") +
   geom_hline(data = tol_df, aes(yintercept = -tol), linetype = "dashed", color = "firebrick") +
-  geom_errorbar(aes(ymin = diff - psychrometer_unc, ymax = diff + psychrometer_unc,
-                    color = station, group = version),
-                width = 0.15, alpha = 0.5, position = position_dodge(width = 0.4)) +
-  geom_point(aes(color = station, shape = version, group = version), size = 3, stroke = 1.1,
-             position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = diff - psychrometer_unc, ymax = diff + psychrometer_unc, color = station),
+                width = 0.15, alpha = 0.6) +
+  geom_point(aes(color = station), size = 3.2) +
   facet_wrap(~ panel, scales = "free_y") +
   scale_color_manual(values = STATION_COLORS, guide = "none") +
-  scale_shape_manual(values = c("roh" = 16, "korrigiert (Offset Vergleichsmessung)" = 1), name = NULL) +
   scale_y_continuous(labels = dec_comma()) +
   labs(title = "AWS-Feldmessung vs. Aspirationspsychrometer",
        subtitle = paste0("Eine Ablesung pro Standort, AWS gemittelt über ±",
@@ -224,6 +201,6 @@ p <- ggplot(plot_df, aes(x, diff)) +
                         "Fehlerbalken: Unsicherheit des Psychrometers bei ±", fmt(u, 1),
                         " K Ablesegenauigkeit.")) +
   theme_mgp() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "bottom")
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
 
 save_png(p, file.path(FIGURE_DIR, "psychrometer_vergleich.png"), FIG_SIZE$psychrometer)
