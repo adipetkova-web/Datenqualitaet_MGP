@@ -54,7 +54,7 @@ plot_df <- gradient_bias %>%
   mutate(panel = paste0(sapply(variable_group, function(v) VARIABLES[[v]]$title),
                         " (", unit, ")"))
 
-p <- ggplot(plot_df, aes(paste0("AWS", station), mean_diff_3m_minus_1m, color = station)) +
+p <- ggplot(plot_df, aes(factor(station_name(station), levels = STATION_CODES), mean_diff_3m_minus_1m, color = station)) +
   geom_hline(yintercept = 0, color = "grey40") +
   geom_errorbar(aes(ymin = mean_diff_3m_minus_1m - sd_diff, ymax = mean_diff_3m_minus_1m + sd_diff),
                 width = 0.15, linewidth = 0.7) +

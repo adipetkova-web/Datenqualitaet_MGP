@@ -17,6 +17,15 @@ PSYCHRO_CSV <- "data/psychrometer/psychrometer_messungen.csv"
 
 STATIONS <- c("20", "30", "40", "50")
 
+# Kuerzel fuer Beschriftungen in Plots (aus data/metadata/AWS_Metadaten.xlsx).
+# Ordner- und Spaltennamen bleiben bei den Nummern (AWS20, air_temp_1m_20 ...).
+STATION_CODES <- c(
+  "20" = "AK",   # Acker
+  "30" = "MW",   # Mischwald
+  "40" = "KF",   # Kiefernforst
+  "50" = "FW"    # Feuchtwiese
+)
+
 # Waehrend der Vergleichsmessung standen alle vier Stationen am
 # selben Ort -> gleiche Hoehe, dz = 0 fuer alle.
 STATION_Z <- c(69, 69, 69, 69)  # m ue. NN

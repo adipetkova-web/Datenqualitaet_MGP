@@ -112,6 +112,9 @@ measurement_columns <- function(df, var_group) {
 
 station_of <- function(col) sub(".*_", "", col)
 
+# Stationsnummer -> Kuerzel fuer Plots, z.B. "20" -> "AK"
+station_name <- function(st) unname(STATION_CODES[as.character(st)])
+
 sensor_of <- function(col) {
   vapply(strsplit(col, "_", fixed = TRUE), function(parts) {
     n <- length(parts)
@@ -119,11 +122,11 @@ sensor_of <- function(col) {
   }, character(1))
 }
 
-# "air_temp_1m_20" -> "AWS20 · 1m-Sensor",  "R_sw_d_20" -> "AWS20"
+# "air_temp_1m_20" -> "AK · 1m-Sensor",  "R_sw_d_20" -> "AK"
 sensor_label <- function(col) {
   s <- sensor_of(col)
-  ifelse(is.na(s), paste0("AWS", station_of(col)),
-         paste0("AWS", station_of(col), " · ", s, "-Sensor"))
+  ifelse(is.na(s), station_name(station_of(col)),
+         paste0(station_name(station_of(col)), " · ", s, "-Sensor"))
 }
 
 axis_label <- function(var_group, prefix = NULL) {
@@ -241,7 +244,7 @@ theme_mgp <- function() {
 }
 
 scale_color_stations <- function(...) {
-  scale_color_manual(values = STATION_COLORS, labels = paste0("AWS", names(STATION_COLORS)),
+  scale_color_manual(values = STATION_COLORS, labels = station_name(names(STATION_COLORS)),
                      name = "Station", ...)
 }
 
