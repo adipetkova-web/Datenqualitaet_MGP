@@ -18,7 +18,8 @@
 #
 # Ausgabe:
 #   results/tables/gradientenfehler.csv
-#   results/figures/gradientenfehler.png
+#   results/figures/gradientenfehler_air_temp.png
+#   results/figures/gradientenfehler_rel_hum.png
 # ============================================================
 
 source("R/helpers.R")
@@ -40,7 +41,7 @@ gradient_bias <- bind_rows(lapply(c("air_temp", "rel_hum"), function(v) {
       sd_diff = sd(d),
       rmsd_diff = sqrt(mean(d^2)),
       pseudo_gradient_per_m = mean(d) / DZ_FIELD,
-      unit = VARIABLES[[v]]$unit
+      unit = diff_unit(v)
     )
   }))
 }))
@@ -48,29 +49,34 @@ gradient_bias <- bind_rows(lapply(c("air_temp", "rel_hum"), function(v) {
 write_table(gradient_bias, "gradientenfehler.csv")
 print(gradient_bias %>% mutate(across(where(is.numeric), ~ round(.x, 3))), row.names = FALSE)
 
-#### Abbildung ####
+#### Abbildungen (eine pro Variable) ####
 
-plot_df <- gradient_bias %>%
-  mutate(panel = paste0(sapply(variable_group, function(v) VARIABLES[[v]]$title),
-                        " (", unit, ")"))
+plot_gradient_bias <- function(v) {
+  d <- gradient_bias[gradient_bias$variable_group == v, ]
+  d$name <- factor(station_name(d$station), levels = STATION_CODES)
+  u <- diff_unit(v)
 
-p <- ggplot(plot_df, aes(factor(station_name(station), levels = STATION_CODES), mean_diff_3m_minus_1m, color = station)) +
-  geom_hline(yintercept = 0, color = "grey40") +
-  geom_errorbar(aes(ymin = mean_diff_3m_minus_1m - sd_diff, ymax = mean_diff_3m_minus_1m + sd_diff),
-                width = 0.15, linewidth = 0.7) +
-  geom_point(size = 3.2) +
-  geom_text(aes(label = paste0(fmt(pseudo_gradient_per_m, 2), "/m")),
-            nudge_x = 0.12, hjust = 0, size = 3.3, color = "grey20") +
-  facet_wrap(~ panel, scales = "free_y") +
-  scale_x_discrete(expand = expansion(add = c(0.5, 0.9))) +
-  scale_color_manual(values = STATION_COLORS, guide = "none") +
-  scale_y_continuous(labels = dec_comma()) +
-  labs(
-    title = "Sensordifferenz 3m − 1m bei gleicher Montagehöhe (1,6 m)",
-    subtitle = "Diese Differenz erscheint im Feld als Schein-Gradient zwischen 1 m und 3 m",
-    x = NULL, y = "Differenz 3m-Sensor − 1m-Sensor",
-    caption = "Punkt: Mittelwert, Balken: ±1 Standardabweichung, Zahl: Schein-Gradient = Differenz / 2 m."
-  ) +
-  theme_mgp()
+  ggplot(d, aes(name, mean_diff_3m_minus_1m, color = station)) +
+    geom_hline(yintercept = 0, color = "grey40") +
+    geom_errorbar(aes(ymin = mean_diff_3m_minus_1m - sd_diff, ymax = mean_diff_3m_minus_1m + sd_diff),
+                  width = 0.15, linewidth = 0.7) +
+    geom_point(size = 3.2) +
+    geom_text(aes(label = paste0(fmt(pseudo_gradient_per_m, 2), " ", u, "/m")),
+              nudge_x = 0.12, hjust = 0, size = 3.5, color = "grey20") +
+    scale_x_discrete(expand = expansion(add = c(0.5, 0.9))) +
+    scale_color_manual(values = STATION_COLORS, guide = "none") +
+    scale_y_continuous(labels = dec_comma()) +
+    labs(
+      title = paste0(VARIABLES[[v]]$title, " \u2013 Sensordifferenz 3m \u2212 1m"),
+      subtitle = "Beide Sensoren auf 1,6 m montiert \u2013 im Feld erscheint diese Differenz als Schein-Gradient",
+      x = NULL,
+      y = paste0("Differenz 3m-Sensor \u2212 1m-Sensor (", u, ")"),
+      caption = paste0("Punkt: Mittelwert, Balken: \u00b11 Standardabweichung (", window_label(v), ").\n",
+                       "Zahl: Schein-Gradient = Differenz / 2 m.")
+    ) +
+    theme_mgp()
+}
 
-save_png(p, file.path(FIGURE_DIR, "gradientenfehler.png"), FIG_SIZE$gradient)
+for (v in c("air_temp", "rel_hum")) {
+  save_png(plot_gradient_bias(v), file.path(FIGURE_DIR, paste0("gradientenfehler_", v, ".png")), FIG_SIZE$gradient)
+}

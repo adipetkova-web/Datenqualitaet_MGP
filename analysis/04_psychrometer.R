@@ -178,7 +178,7 @@ print(cmp %>% group_by(variable_group, sensor) %>%
 
 plot_df <- cmp %>%
   filter(!is.na(diff)) %>%
-  mutate(panel = sapply(variable_group, axis_label),
+  mutate(panel = sapply(variable_group, function(v) paste0(VARIABLES[[v]]$title, " (", diff_unit(v), ")")),
          x = factor(station_name(station), levels = STATION_CODES))
 
 tol_df <- distinct(plot_df, panel, tol)

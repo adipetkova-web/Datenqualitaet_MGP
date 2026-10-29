@@ -122,11 +122,17 @@ sensor_of <- function(col) {
   }, character(1))
 }
 
-# "air_temp_1m_20" -> "AK · 1m-Sensor",  "R_sw_d_20" -> "AK"
+# "air_temp_1m_20" -> "Acker · 1m-Sensor",  "R_sw_d_20" -> "Acker"
 sensor_label <- function(col) {
   s <- sensor_of(col)
   ifelse(is.na(s), station_name(station_of(col)),
          paste0(station_name(station_of(col)), " · ", s, "-Sensor"))
+}
+
+# Einheit fuer Differenzen (Temperaturdifferenzen in K, sonst wie Messgroesse)
+diff_unit <- function(var_group) {
+  cfg <- VARIABLES[[var_group]]
+  if (!is.null(cfg$diff_unit)) cfg$diff_unit else cfg$unit
 }
 
 axis_label <- function(var_group, prefix = NULL) {
@@ -142,7 +148,9 @@ window_label <- function(var_group) {
 
 # Zahlen mit deutschem Dezimalkomma (fuer Plots)
 fmt <- function(x, digits = 2) {
-  ifelse(is.na(x), "NA", formatC(round(x, digits), format = "f", digits = digits, decimal.mark = ","))
+  x <- round(x, digits)
+  x[!is.na(x) & x == 0] <- 0        # kein "-0,00"
+  ifelse(is.na(x), "NA", formatC(x, format = "f", digits = digits, decimal.mark = ","))
 }
 
 make_equation <- function(slope, offset, digits = 3) {

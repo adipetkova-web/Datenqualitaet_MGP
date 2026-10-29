@@ -17,13 +17,14 @@ PSYCHRO_CSV <- "data/psychrometer/psychrometer_messungen.csv"
 
 STATIONS <- c("20", "30", "40", "50")
 
-# Kuerzel fuer Beschriftungen in Plots (aus data/metadata/AWS_Metadaten.xlsx).
+# Namen fuer Beschriftungen in Plots (aus data/metadata/AWS_Metadaten.xlsx).
 # Ordner- und Spaltennamen bleiben bei den Nummern (AWS20, air_temp_1m_20 ...).
+# Lieber Kuerzel? Einfach z.B. "20" = "AK" eintragen.
 STATION_CODES <- c(
-  "20" = "AK",   # Acker
-  "30" = "MW",   # Mischwald
-  "40" = "KF",   # Kiefernforst
-  "50" = "FW"    # Feuchtwiese
+  "20" = "Acker",          # AK
+  "30" = "Mischwald",      # MW
+  "40" = "Kiefernforst",   # KF
+  "50" = "Feuchtwiese"     # FW
 )
 
 # Waehrend der Vergleichsmessung standen alle vier Stationen am
@@ -78,7 +79,7 @@ DAY_THRESHOLD_WM2 <- 10
 
 VARIABLES <- list(
   air_temp = list(
-    title = "Lufttemperatur", unit = "°C",
+    title = "Lufttemperatur", unit = "°C", diff_unit = "K",
     t0 = "2026-09-01 18:00:00", t1 = "2026-09-02 04:00:00",
     window = "fester Nachtzeitraum",
     day_only = FALSE,

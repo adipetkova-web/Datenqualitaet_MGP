@@ -69,7 +69,7 @@ scatter_annotation <- function(v) {
     panel = factor(sensor_label(s$comparison_variable),
                    levels = sensor_label(sensor_order(s$comparison_variable))),
     label = paste0("R² = ", fmt(s$r_squared, 4), "\n", s$equation,
-                   "\nRMSD = ", fmt(s$RMSD, 2), " ", VARIABLES[[v]]$unit,
+                   "\nRMSD = ", fmt(s$RMSD, 2), " ", diff_unit(v),
                    "\nn = ", s$n_pairs)
   )
 }
@@ -91,16 +91,16 @@ plot_scatter <- function(v, dev, ann, single = FALSE) {
     scale_y_continuous(labels = dec_comma()) +
     coord_equal(xlim = lim, ylim = lim) +
     labs(subtitle = paste0("Referenz: ", sensor_label(ref), "  |  ", window_label(v)),
-         x = axis_label(v, paste0("Referenz (", sensor_label(ref), "):")),
+         x = paste0("Referenz: ", sensor_label(ref), " (", cfg$unit, ")"),
          caption = "Gestrichelt: 1:1-Linie  |  Schwarz: lineare Regression") +
     theme_mgp()
 
   if (single) {
     p + labs(title = paste0(cfg$title, ": ", dev$panel[1], " vs. Referenz"),
-             y = axis_label(v, paste0(dev$panel[1], ":")))
+             y = paste0(dev$panel[1], " (", cfg$unit, ")"))
   } else {
     p + facet_wrap(~ panel, ncol = 4) +
-      labs(title = paste(cfg$title, "– Sensoren vs. Referenz"), y = axis_label(v, "Sensor:"))
+      labs(title = paste(cfg$title, "– Sensoren vs. Referenz"), y = paste0("Vergleichssensor (", cfg$unit, ")"))
   }
 }
 
@@ -113,7 +113,7 @@ plot_boxplot <- function(v) {
   pct <- cfg$tol_mode == "percent"
 
   dev$y <- if (pct) dev$percent_deviation else dev$deviation
-  unit  <- if (pct) "%" else cfg$unit
+  unit  <- if (pct) "%" else diff_unit(v)
 
   # RMSD-Beschriftung ueber jeder Box (statt Mittelwert)
   lab <- data.frame(
@@ -136,7 +136,7 @@ plot_boxplot <- function(v) {
     labs(title = paste(cfg$title, "– Abweichung von der Referenz"),
          subtitle = paste0("Referenz: ", sensor_label(s$reference_variable[1]), "  |  ", window_label(v)),
          x = NULL,
-         y = if (pct) "Abweichung vom Referenzwert (%)" else paste0("Abweichung Sensor − Referenz (", unit, ")"),
+         y = if (pct) "Abweichung vom Referenzwert (%)" else paste0("Abweichung von der Referenz (", unit, ")"),
          caption = paste0("Rot gestrichelt: Messgenauigkeit laut Hersteller (", cfg$tol_source, ").  ",
                           "Zahl über der Box: RMSD in ", unit, ".")) +
     theme_mgp() +
@@ -161,7 +161,7 @@ plot_boxplot_squared <- function(v) {
   pct <- cfg$tol_mode == "percent"
 
   dev$y  <- (if (pct) dev$percent_deviation else dev$deviation)^2
-  unit   <- if (pct) "%" else cfg$unit
+  unit   <- if (pct) "%" else diff_unit(v)
   unit2  <- squared_unit(v, pct)
 
   msd <- aggregate(y ~ panel, data = dev, FUN = mean)
@@ -186,7 +186,7 @@ plot_boxplot_squared <- function(v) {
     labs(title = paste(cfg$title, "– quadrierte Abweichung von der Referenz"),
          subtitle = paste0("Referenz: ", sensor_label(s$reference_variable[1]), "  |  ", window_label(v)),
          x = NULL,
-         y = paste0("(Sensor − Referenz)² (", unit2, ")"),
+         y = paste0("Quadrierte Abweichung von der Referenz (", unit2, ")"),
          caption = paste0("Raute: Mittelwert der quadrierten Abweichungen (MSD).  Zahl: RMSD = √MSD in ", unit, ".\n",
                           "Rot gestrichelt: Herstellergenauigkeit zum Quadrat (", cfg$tol_source, ").")) +
     theme_mgp() +
