@@ -19,12 +19,12 @@ STATIONS <- c("20", "30", "40", "50")
 
 # Namen fuer Beschriftungen in Plots (aus data/metadata/AWS_Metadaten.xlsx).
 # Ordner- und Spaltennamen bleiben bei den Nummern (AWS20, air_temp_1m_20 ...).
-# Lieber Kuerzel? Einfach z.B. "20" = "AK" eintragen.
+# Lieber ausgeschriebene Namen? Einfach z.B. "20" = "Acker" eintragen.
 STATION_CODES <- c(
-  "20" = "Acker",          # AK
-  "30" = "Mischwald",      # MW
-  "40" = "Kiefernforst",   # KF
-  "50" = "Feuchtwiese"     # FW
+  "20" = "AK",   # Acker
+  "30" = "MW",   # Mischwald
+  "40" = "KF",   # Kiefernforst
+  "50" = "FW"    # Feuchtwiese
 )
 
 # Waehrend der Vergleichsmessung standen alle vier Stationen am

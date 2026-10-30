@@ -122,7 +122,7 @@ sensor_of <- function(col) {
   }, character(1))
 }
 
-# "air_temp_1m_20" -> "Acker · 1m-Sensor",  "R_sw_d_20" -> "Acker"
+# "air_temp_1m_20" -> "AK · 1m-Sensor",  "R_sw_d_20" -> "AK"
 sensor_label <- function(col) {
   s <- sensor_of(col)
   ifelse(is.na(s), station_name(station_of(col)),

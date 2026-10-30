@@ -16,7 +16,7 @@ Bericht: Adelina Petkova, Fiona Lingk
 | AWS40 | KF | Kiefernforst |
 | AWS50 | FW | Feuchtwiese |
 
-In den Abbildungen stehen die Standortnamen; Ordner, Dateien und Spaltennamen verwenden weiter die Nummern. Ändern lässt sich das in `STATION_CODES` in `R/config.R`.
+In den Abbildungen stehen die Kürzel; Ordner, Dateien und Spaltennamen verwenden weiter die Nummern. Ändern lässt sich das in `STATION_CODES` in `R/config.R`.
 
 ---
 
@@ -111,10 +111,10 @@ Jeder systematische Unterschied zwischen den beiden Sensoren einer Station geht 
 
 | Station | Temperatur 3m − 1m | Schein-Gradient |
 |---|---|---|
-| Acker (AWS20) | −0,30 K | −0,15 K/m |
-| Mischwald (AWS30) | +0,29 K | +0,15 K/m |
-| Kiefernforst (AWS40) | +0,16 K | +0,08 K/m |
-| Feuchtwiese (AWS50) | −0,06 K | −0,03 K/m |
+| AK (AWS20) | −0,30 K | −0,15 K/m |
+| MW (AWS30) | +0,29 K | +0,15 K/m |
+| KF (AWS40) | +0,16 K | +0,08 K/m |
+| FW (AWS50) | −0,06 K | −0,03 K/m |
 
 Das liegt zwar innerhalb der Herstellergenauigkeit (±0,4 K pro Sensor), ist aber in der Größenordnung typischer nächtlicher Gradienten in Bodennähe. Bei AWS20 und AWS30 haben die Abweichungen außerdem entgegengesetzte Vorzeichen, sodass auch Unterschiede *zwischen* den Stationen verzerrt werden.
 Daraus lässt sich ableiten, ob die Felddaten mit den Offsets aus der Vergleichsmessung korrigiert werden sollten.
