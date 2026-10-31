@@ -97,7 +97,7 @@ AWS_read_file <- function(file, t0=NULL, t1=NULL) {
   # Convert date and time into POSIXct timestamps, define timezone
   #***************************************************************
   
-  aws$t <- as.POSIXct(aws$t, tz="Etc/GMT-1") # POSIXct time stamps
+  aws$t <- as.POSIXct(aws$t, tz="UTC") # POSIXct time stamps (geaendert: Logger-Uhr laeuft in UTC, nicht UTC+1 - siehe R/config.R)
   aws <- aws[!duplicated(aws$t), ]  # Remove duplicates
 
   #colnames(aws)[colnames(aws)=="TIMESTAMP"] <- "t" # rename column TIMESTAMP to t  
@@ -274,7 +274,7 @@ AWS_read_csv <- function(file) {
   # Convert timestamps
   #*******************
   
-  data$t <- as.POSIXct(data$TIMESTAMP, tz="Etc/GMT-1", tryFormats=fmt) 
+  data$t <- as.POSIXct(data$TIMESTAMP, tz="UTC", tryFormats=fmt) 
 
   data$TIMESTAMP <- NULL # remove from data frame
   

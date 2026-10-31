@@ -11,7 +11,7 @@
 #
 # EINGABE: data/psychrometer/psychrometer_messungen.csv
 #   datum          z.B. 3.09 / 03.09.2026 / 2026-09-03
-#   uhrzeit        z.B. 9:32  in UTC+1 (wie die Logger, siehe PSYCHRO_TZ)
+#   uhrzeit        z.B. 9:32  in der Zeitzone PSYCHRO_TZ (R/config.R)
 #   station        20, 30, 40 oder 50
 #   t_trocken      Trockentemperatur (Grad C)
 #   t_feucht       Feuchttemperatur (Grad C)
@@ -73,7 +73,7 @@ read_psychro <- function(file) {
   datum <- do.call(c, lapply(psy$datum, parse_date))
   zeit  <- sub("^(\\d{1,2}:\\d{2})(:\\d{2})?$", "\\1", trimws(psy$uhrzeit))
 
-  # Ablesezeit in der notierten Zeitzone -> in Logger-Zeit (UTC+1) umrechnen
+  # Ablesezeit in der notierten Zeitzone -> in Logger-Zeit (UTC) umrechnen
   t_local <- as.POSIXct(paste(datum, zeit), format = "%Y-%m-%d %H:%M", tz = PSYCHRO_TZ)
   psy$t   <- as.POSIXct(format(t_local, tz = TZ), tz = TZ)
 
@@ -159,7 +159,7 @@ if (all(is.na(cmp$aws))) {
 }
 
 cat("\nPsychrometer-Feuchte:\n")
-print(data.frame(station = psy$station, zeit_UTC1 = format(psy$t, "%d.%m. %H:%M"),
+print(data.frame(station = psy$station, zeit_UTC = format(psy$t, "%d.%m. %H:%M"),
                  T = psy$t_trocken, Tf = psy$t_feucht, p_hPa = round(psy$p_used, 1),
                  RH = round(psy$rh_psychro, 1), RH_unc = round(psy$rh_psychro_unc, 1)), row.names = FALSE)
 

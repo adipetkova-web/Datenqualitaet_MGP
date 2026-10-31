@@ -31,9 +31,13 @@ STATION_CODES <- c(
 # selben Ort -> gleiche Hoehe, dz = 0 fuer alle.
 STATION_Z <- c(69, 69, 69, 69)  # m ue. NN
 
-# Zeitzone der Logger: UTC+1. Achtung, POSIX-Konvention dreht das
-# Vorzeichen um: "Etc/GMT-1" bedeutet UTC+1.
-TZ <- "Etc/GMT-1"
+# Zeitzone der Logger: UTC.
+# Die Kursunterlagen geben UTC+1 an, die Daten zeigen aber UTC: Die Mitte
+# zwischen Sonnenauf- und -untergang (erste/letzte Globalstrahlung > 5 W/m2)
+# liegt an allen Stationen und Tagen bei ~11:07 Logger-Zeit. Das ist der
+# Sonnenhoechststand bei 12,8 Grad Ost in UTC (in UTC+1 waere es ~12:08).
+TZ <- "UTC"
+TZ_LABEL <- "UTC"   # fuer Plot-Beschriftungen
 
 # Zeitliche Aufloesung: 1 = Minutenwerte (keine Aggregation)
 AGG_MINUTES <- 1
@@ -52,8 +56,10 @@ FIELD_STATION_Z <- c(68, 63, 74, 63)  # m ue. NN, aus data/metadata/AWS_Metadate
 FIELD_YEAR      <- 2026               # fuer Datumsangaben ohne Jahr ("3.09")
 
 # Zeitzone der Psychrometer-Uhrzeiten in psychrometer_messungen.csv.
-# Protokoll in UTC, beim Eintragen +1 h gerechnet -> UTC+1 = "Etc/GMT-1",
-# gleiche Zeit wie die Logger.
+# Protokoll in UTC, beim Eintragen in die Tabelle +1 h gerechnet -> UTC+1.
+# Achtung POSIX-Konvention: "Etc/GMT-1" bedeutet UTC+1. Das Skript rechnet
+# die Zeiten automatisch in Logger-Zeit (UTC) um, also -1 h.
+# (Wer die Original-UTC-Zeiten eintraegt, setzt hier "UTC".)
 PSYCHRO_TZ <- "Etc/GMT-1"
 
 # Das Psychrometer wurde auf Hoehe des unteren Sensors gemessen
@@ -67,7 +73,7 @@ PSYCHRO_READ_UNC_K          <- 0.1  # Ablesegenauigkeit der Thermometer (K)
 # Pro Variablengruppe:
 #   title       Titel in Plots
 #   unit        Einheit fuer Achsen
-#   t0, t1      Analysezeitraum (UTC+1)
+#   t0, t1      Analysezeitraum (UTC, Logger-Zeit)
 #   window      kurze Beschreibung des Zeitraums (fuer Untertitel)
 #   day_only    TRUE = nur Zeitpunkte, an denen mind. eine Station
 #               Globalstrahlung >= DAY_THRESHOLD_WM2 misst

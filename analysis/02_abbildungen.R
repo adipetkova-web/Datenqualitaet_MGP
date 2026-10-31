@@ -39,7 +39,7 @@ plot_timeseries <- function(v) {
     scale_y_continuous(labels = dec_comma()) +
     labs(title = paste(cfg$title, "– Zeitverlauf"),
          subtitle = window_label(v),
-         x = "Zeit (UTC+1)", y = axis_label(v), linetype = "Sensor") +
+         x = paste0("Zeit (", TZ_LABEL, ")"), y = axis_label(v), linetype = "Sensor") +
     theme_mgp()
 
   if (all(long$level == "–")) p <- p + guides(linetype = "none")

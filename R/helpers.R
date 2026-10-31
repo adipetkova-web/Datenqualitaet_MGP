@@ -143,7 +143,7 @@ axis_label <- function(var_group, prefix = NULL) {
 window_label <- function(var_group) {
   cfg <- VARIABLES[[var_group]]
   paste0(format(as_time(cfg$t0), "%d.%m. %H:%M"), "–",
-         format(as_time(cfg$t1), "%d.%m. %H:%M"), " (UTC+1), ", cfg$window)
+         format(as_time(cfg$t1), "%d.%m. %H:%M"), " (", TZ_LABEL, "), ", cfg$window)
 }
 
 # Zahlen mit deutschem Dezimalkomma (fuer Plots)

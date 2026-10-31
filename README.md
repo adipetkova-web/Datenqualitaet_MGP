@@ -52,7 +52,7 @@ Ein kompletter Durchlauf dauert etwa 30 Sekunden.
 │   ├── 03_gradientenfehler.R    ← Auswirkung der Sensorabweichungen auf Gradienten
 │   └── 04_psychrometer.R        ← Vergleich mit dem Aspirationspsychrometer
 ├── data/
-│   ├── raw/AWS20 … AWS50/       ← Logger-Rohdaten Vergleichsmessung (TOA5, Minutenwerte, UTC+1)
+│   ├── raw/AWS20 … AWS50/       ← Logger-Rohdaten Vergleichsmessung (TOA5, Minutenwerte, UTC)
 │   ├── raw/AWS20_Feld … _Feld/  ← Logger-Rohdaten Feldmessung
 │   ├── metadata/                ← Stations-Metadaten, Koordinaten, SVF, CLC-Karten, Variablenliste
 │   └── psychrometer/            ← Psychrometer-Ablesungen der Feldmessung
@@ -60,6 +60,12 @@ Ein kompletter Durchlauf dauert etwa 30 Sekunden.
     ├── tables/                  ← CSV-Ergebnisse
     └── figures/                 ← PNG-Abbildungen für den Bericht
 ```
+
+---
+
+## Zeitzone der Logger
+
+Die Logger-Zeitstempel sind **UTC**, nicht UTC+1 wie in den Kursunterlagen angegeben. Geprüft über den Sonnenstand: Die Mitte zwischen erster und letzter Globalstrahlung > 5 W/m² liegt an allen Stationen und Tagen bei ~11:07 Logger-Zeit. Das entspricht dem Sonnenhöchststand bei 12,8° O in UTC. Alle Zeitangaben in Skripten und Abbildungen sind daher UTC.
 
 ---
 
@@ -80,7 +86,7 @@ Ein kompletter Durchlauf dauert etwa 30 Sekunden.
 
 **Zeitfenster** (einstellbar in `R/config.R`):
 
-| Messgröße | Zeitraum (UTC+1) | Begründung |
+| Messgröße | Zeitraum (UTC) | Begründung |
 |---|---|---|
 | Lufttemperatur, rel. Feuchte | 01.09. 18:00 – 02.09. 04:00 | Nacht, keine Strahlungsfehler durch Sonneneinstrahlung |
 | Globalstrahlung | 01.09. 15:00 – 18:00, nur Werte ≥ 10 W/m² | Tag, dynamisch aus den Messwerten bestimmt |
@@ -138,7 +144,7 @@ datum,uhrzeit,station,t_trocken,t_feucht,luftdruck_hpa,bemerkung
 ```
 - Datum geht auch als `3.09` oder `03.09.2026`. `;` als Trennzeichen und Dezimalkomma (deutsches Excel) gehen auch.
 - `luftdruck_hpa` darf leer bleiben, dann wird der Luftdruck der Station verwendet.
-- Uhrzeiten in **UTC+1** wie die Logger (im Protokoll UTC, beim Eintragen +1 h). Einstellbar über `PSYCHRO_TZ` in `R/config.R`.
+- Uhrzeiten in der Tabelle: **UTC+1** (im Protokoll UTC, beim Eintragen +1 h). Das Skript rechnet sie in Logger-Zeit um. Einstellbar über `PSYCHRO_TZ` in `R/config.R`.
 
 Was das Skript macht:
 1. **Relative Feuchte aus Trocken- und Feuchttemperatur** (WMO-Psychrometerformel für ventilierte Psychrometer):

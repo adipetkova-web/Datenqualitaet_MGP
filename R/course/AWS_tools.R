@@ -756,12 +756,12 @@ AWS_plot <- function(data,
       if (i == 1) {
         sunset <- plot_start
       } else {
-        sunset <- as.POSIXct(paste(all_days[i-1], sunrise_sunset[2]), tz = "Etc/GMT-1")
+        sunset <- as.POSIXct(paste(all_days[i-1], sunrise_sunset[2]), tz = "UTC")
         sunset <- pmax(sunset, plot_start)
       }
       
       # sunrise of current day
-      sunrise <- as.POSIXct(paste(all_days[i], sunrise_sunset[1]), tz = "Etc/GMT-1")
+      sunrise <- as.POSIXct(paste(all_days[i], sunrise_sunset[1]), tz = "UTC")
       sunrise <- pmin(sunrise, plot_end)
       
       # only annotate if there is actually a night interval
@@ -773,7 +773,7 @@ AWS_plot <- function(data,
     }
     
     # Shade night after the last sunset until end of plot
-    last_sunset <- as.POSIXct(paste(all_days[length(all_days)], sunrise_sunset[2]), tz = "Etc/GMT-1")
+    last_sunset <- as.POSIXct(paste(all_days[length(all_days)], sunrise_sunset[2]), tz = "UTC")
     if (last_sunset < plot_end) {
       plot_obj <- plot_obj +
         annotate("rect", xmin = last_sunset, xmax = plot_end, ymin = -Inf, ymax = Inf,
@@ -961,8 +961,8 @@ control_plot <- function(df, dir) {
 #*******************
 
 calc_albedo <- function(df, t0, t1, ref_period_length=5, buffer_length=5) {
-  t0 <- as.POSIXct(t0, tz="Etc/GMT-1")
-  t1 <- as.POSIXct(t1, tz="Etc/GMT-1")
+  t0 <- as.POSIXct(t0, tz="UTC")
+  t1 <- as.POSIXct(t1, tz="UTC")
   
   buf = 60 * buffer_length
   ref = 60 * ref_period_length
