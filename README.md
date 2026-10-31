@@ -150,7 +150,7 @@ Was das Skript macht:
 1. **Relative Feuchte aus Trocken- und Feuchttemperatur** (WMO-Psychrometerformel für ventilierte Psychrometer):
    e = E(T_f) − A·p·(T − T_f), A = 6,53·10⁻⁴·(1 + 0,000944·T_f) K⁻¹, RH = e / E(T) · 100.
    Dazu die Unsicherheit der Feuchte bei ±0,1 K Ablesegenauigkeit (~±1,5–2 %).
-2. AWS-Werte vom **unteren Sensor (1m)**, auf dessen Höhe das Psychrometer gemessen wurde, als Mittel über ±2 min um die Ablesung.
+2. Das Psychrometer hing auf **2 m**, zwischen den beiden AWS-Sensoren. Verglichen wird deshalb mit dem **Mittel aus 1m- und 3m-Sensor**, jeweils gemittelt über ±2 min um die Ablesung.
 3. Differenz AWS − Psychrometer mit den Rohwerten (ohne Offset-Korrektur).
 
 Mit nur einer Ablesung pro Standort ist das eine Stichprobe, keine Kalibrierung.

@@ -28,8 +28,8 @@
 #    T = Trocken-, Tf = Feuchttemperatur, p = Luftdruck (hPa).
 #
 # 2) AWS-Werte: Mittel ueber +/- PSYCHRO_AVG_HALF_WINDOW_MIN Minuten
-#    um die Ablesung, vom Sensor auf Psychrometer-Hoehe
-#    (PSYCHRO_SENSOR in R/config.R, hier der untere = 1m-Sensor).
+#    um die Ablesung. Psychrometer-Hoehe 2 m -> Mittel aus 1m- und
+#    3m-Sensor (PSYCHRO_SENSOR = "2m" in R/config.R).
 #
 # 3) Differenz AWS - Psychrometer (Rohwerte, ohne Offset-Korrektur).
 #
@@ -133,8 +133,8 @@ rows <- list()
 for (i in seq_len(nrow(psy))) {
   for (sensor in PSYCHRO_SENSOR) {
     for (v in c("air_temp", "rel_hum")) {
-      col     <- paste0(v, "_", sensor, "_", psy$station[i])
-      aws_raw <- aws_mean(col, psy$t[i])
+      levels  <- if (sensor == "2m") c("1m", "3m") else sensor
+      aws_raw <- mean(sapply(levels, function(l) aws_mean(paste0(v, "_", l, "_", psy$station[i]), psy$t[i])))
       ref_val <- if (v == "air_temp") psy$t_trocken[i] else psy$rh_psychro[i]
       rows[[length(rows) + 1]] <- data.frame(
         station = psy$station[i], t = format(psy$t[i], "%Y-%m-%d %H:%M"), sensor = sensor,
@@ -195,7 +195,8 @@ p <- ggplot(plot_df, aes(x, diff)) +
   scale_y_continuous(labels = dec_comma()) +
   labs(title = "AWS-Feldmessung vs. Aspirationspsychrometer",
        subtitle = paste0("Eine Ablesung pro Standort, AWS gemittelt über ±",
-                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min, ", PSYCHRO_SENSOR, "-Sensor"),
+                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min, ",
+                         if (PSYCHRO_SENSOR == "2m") "Mittel aus 1m- und 3m-Sensor (Messh\u00f6he 2 m)" else paste0(PSYCHRO_SENSOR, "-Sensor")),
        x = NULL, y = "Abweichung AWS − Psychrometer",
        caption = paste0("Rot gestrichelt: Herstellergenauigkeit der AWS-Sensoren.\n",
                         "Fehlerbalken: Unsicherheit des Psychrometers bei ±", fmt(u, 1),

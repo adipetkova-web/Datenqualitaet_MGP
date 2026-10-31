@@ -62,8 +62,11 @@ FIELD_YEAR      <- 2026               # fuer Datumsangaben ohne Jahr ("3.09")
 # (Wer die Original-UTC-Zeiten eintraegt, setzt hier "UTC".)
 PSYCHRO_TZ <- "Etc/GMT-1"
 
-# Das Psychrometer wurde auf Hoehe des unteren Sensors gemessen
-PSYCHRO_SENSOR <- "1m"
+# Messhoehe des Psychrometers: 2 m (am Querarm zwischen den Sensoren).
+# Es gibt dort keinen AWS-Sensor -> verglichen wird mit dem Mittel aus
+# 1m- und 3m-Sensor als Schaetzung fuer 2 m.
+# Andere Moeglichkeiten: "1m" oder "3m" fuer einen einzelnen Sensor.
+PSYCHRO_SENSOR <- "2m"
 
 PSYCHRO_AVG_HALF_WINDOW_MIN <- 2    # AWS-Mittel ueber +/- 2 min um die Ablesung
 PSYCHRO_READ_UNC_K          <- 0.1  # Ablesegenauigkeit der Thermometer (K)
