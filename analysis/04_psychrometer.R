@@ -195,7 +195,7 @@ p <- ggplot(plot_df, aes(x, diff)) +
   scale_y_continuous(labels = dec_comma()) +
   labs(title = "AWS-Feldmessung vs. Aspirationspsychrometer",
        subtitle = paste0("Eine Ablesung pro Standort, AWS gemittelt über ±",
-                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min, ",
+                         PSYCHRO_AVG_HALF_WINDOW_MIN, " min\n",
                          if (PSYCHRO_SENSOR == "2m") "Mittel aus 1m- und 3m-Sensor (Messh\u00f6he 2 m)" else paste0(PSYCHRO_SENSOR, "-Sensor")),
        x = NULL, y = "Abweichung AWS − Psychrometer",
        caption = paste0("Rot gestrichelt: Herstellergenauigkeit der AWS-Sensoren.\n",
